@@ -70,10 +70,31 @@ export const useCliVersionStatuses = (toolIds: readonly CodeCli[]): Record<strin
           )
         })
         if (needsLatest) {
-          latestVersions = await ipcApi.request('binary.get_latest_versions', true).catch((error) => {
-            logger.error('Failed to get latest binary versions', error as Error)
-            return {}
-          })
+          // Fire the network-bound latest-versions fetch in the background so
+          // the UI can render immediately with cached/local data. In offline
+          // environments this call may timeout after many seconds; blocking
+          // on it prevents the launch button from appearing until the
+          // timeout expires.
+          void ipcApi
+            .request('binary.get_latest_versions', true)
+            .then((fetched) => {
+              if (cancelled) return
+              // Merge fetched versions into the ref and re-derive statuses.
+              for (const toolId of tools) {
+                const binaryName = CODE_CLI_TOOL_PRESET_MAP[toolId].executable
+                if (fetched[binaryName]) latestRef.current[toolId] = fetched[binaryName]
+              }
+              const next: Record<string, VersionStatus> = {}
+              for (const toolId of tools) {
+                const binaryName = CODE_CLI_TOOL_PRESET_MAP[toolId].executable
+                const latest = latestRef.current[toolId]
+                next[toolId] = buildStatus(snapshots[binaryName], latest)
+              }
+              setStatuses(next)
+            })
+            .catch((error) => {
+              logger.error('Failed to get latest binary versions (background)', error as Error)
+            })
         }
       }
       if (cancelled) return
