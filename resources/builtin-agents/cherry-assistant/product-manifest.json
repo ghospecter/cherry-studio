@@ -782,11 +782,13 @@
         "openclaw",
         "deepseek-harness",
         "gemini-cli",
+        "antigravity-cli",
         "qwen-code",
         "kimi-code",
         "qoder-cli",
         "github-copilot-cli",
-        "pi"
+        "pi",
+        "hermes"
       ]
     }
   }
